@@ -3,13 +3,14 @@ import numpy as np
 from app.adapters.csv.csv_parameters_adapter import CSVParametersAdapter
 from app.domain.exceptions import ProductNotFoundError, ParametersNotFoundError
 from app.domain.entities.loan_operation import ProductType, Currency
+from app.config import Settings
 
 
 class TestCSVParametersAdapter:
     """Prueba el adaptador CSV: carga de archivos, consulta de costos, tasas de fondeo y probabilidades de default."""
 
     def setup_method(self):
-        self.adapter = CSVParametersAdapter(data_path='.')
+        self.adapter = CSVParametersAdapter(Settings())
 
     def test_get_costs_returns_valid_tuple(self):
         origination, maintenance = self.adapter.get_costs(ProductType.CREDIT, Currency.PEN)
@@ -39,4 +40,4 @@ class TestCSVParametersAdapter:
 
     def test_raises_when_invalid_data_path(self):
         with pytest.raises(ParametersNotFoundError):
-            CSVParametersAdapter(data_path='/invalid/path')
+            CSVParametersAdapter(Settings(data_path='/invalid/path'))

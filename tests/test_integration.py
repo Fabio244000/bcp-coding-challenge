@@ -3,10 +3,14 @@ import time
 import numpy as np
 import pandas as pd
 from app.adapters.csv.csv_parameters_adapter import CSVParametersAdapter
+from app.domain.services.operation_validator import OperationValidator
+from app.domain.services.amortization_calculator import AmortizationCalculator
+from app.domain.services.clv_calculator import CLVCalculator
 from app.domain.services.rate_optimizer_service import RateOptimizerService
 from app.domain.entities.loan_operation import LoanOperation, ProductType, Currency
+from app.config import Settings
 
-DATA_PATH = '.'
+DATA_PATH = 'data'
 TOLERANCE = 0.01
 MAX_EXECUTION_SECONDS = 60
 
@@ -30,13 +34,20 @@ OPERATIONS = [
 
 
 @pytest.fixture(scope='module')
-def parameters():
-    return CSVParametersAdapter(DATA_PATH)
+def settings():
+    return Settings()
 
 
 @pytest.fixture(scope='module')
-def service(parameters):
-    return RateOptimizerService(parameters)
+def parameters(settings):
+    return CSVParametersAdapter(settings)
+
+
+@pytest.fixture(scope='module')
+def service(parameters, settings):
+    amortization = AmortizationCalculator()
+    clv_calculator = CLVCalculator(amortization, settings)
+    return RateOptimizerService(parameters, OperationValidator(), clv_calculator, settings)
 
 
 @pytest.fixture(scope='module')

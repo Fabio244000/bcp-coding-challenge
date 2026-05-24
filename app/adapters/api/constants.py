@@ -1,5 +1,3 @@
-DATA_PATH = '.'
-
 ERR_PRODUCT_NOT_FOUND = 'Product or currency combination not found'
 ERR_INVALID_OPERATION = 'Invalid operation parameters'
 ERR_OPTIMIZATION_FAILED = 'Could not find optimal TEA within configured range'

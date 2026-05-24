@@ -3,7 +3,7 @@ import pandas as pd
 from fastapi.testclient import TestClient
 from unittest.mock import MagicMock
 from main import app
-from app.adapters.api.routes import get_service
+from app.adapters.api.routes import get_service, get_operation, get_operations
 from app.domain.ports.rate_calculator_port import RateCalculatorPort
 from app.domain.entities.loan_operation import OptimizationResult
 from app.domain.exceptions import (
@@ -61,9 +61,12 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         assert response.json()['success'] is True
 
-    def test_health_returns_503_when_service_unavailable(self, client):
-        app.state.service = None
+    def test_health_returns_503_when_service_unavailable(self, client, mock_service):
+        app.dependency_overrides[get_service] = lambda: (_ for _ in ()).throw(
+            ParametersNotFoundError('not ready')
+        )
         response = client.get('/health')
+        app.dependency_overrides[get_service] = lambda: mock_service
         assert response.status_code == 503
         assert response.json()['success'] is False
 

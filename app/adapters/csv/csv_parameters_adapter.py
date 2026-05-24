@@ -4,9 +4,8 @@ import pandas as pd
 import numpy as np
 from app.domain.ports.market_parameters_port import MarketParametersPort
 from app.domain.exceptions import ParametersNotFoundError, ProductNotFoundError
-from app.adapters.csv.constants import (
-    COSTS_FILE, RATES_FILE, PD_FILE, COSTS_COLUMNS, RATES_COLUMNS, PD_COLUMNS
-)
+from app.adapters.csv.constants import COSTS_COLUMNS, RATES_COLUMNS, PD_COLUMNS
+from app.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +13,11 @@ logger = logging.getLogger(__name__)
 class CSVParametersAdapter(MarketParametersPort):
     """Loads market parameters from CSV files and serves them via the MarketParametersPort contract."""
 
-    def __init__(self, data_path: str):
-        self._costs = self._load_csv(data_path, COSTS_FILE, COSTS_COLUMNS)
-        self._rates = self._load_csv(data_path, RATES_FILE, RATES_COLUMNS)
-        self._pd = self._load_csv(data_path, PD_FILE, PD_COLUMNS)
-        logger.info('CSV parameters loaded successfully from %s', data_path)
+    def __init__(self, settings: Settings):
+        self._costs = self._load_csv(settings.data_path, settings.costs_file, COSTS_COLUMNS)
+        self._rates = self._load_csv(settings.data_path, settings.rates_file, RATES_COLUMNS)
+        self._pd = self._load_csv(settings.data_path, settings.pd_file, PD_COLUMNS)
+        logger.info('CSV parameters loaded successfully from %s', settings.data_path)
 
     def _load_csv(self, data_path: str, filename: str, columns: dict) -> pd.DataFrame:
         path = os.path.join(data_path, filename)

@@ -1,15 +1,19 @@
 import logging
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse
 from app.domain.ports.rate_calculator_port import RateCalculatorPort
 from app.domain.entities.loan_operation import LoanOperation, ProductType, Currency
-from app.domain.exceptions import InvalidOperationError
-from app.adapters.api.schemas import LoanOperationRequest, OptimizationData, BatchOptimizationData, CurveRow, ApiResponse
+from app.domain.exceptions import InvalidOperationError, ParametersNotFoundError
+from app.adapters.api.schemas import (
+    LoanOperationRequest, OptimizationData, BatchOptimizationData, CurveRow, ApiResponse
+)
 from app.adapters.api.constants import (
-    MSG_HEALTH_OK, MSG_HEALTH_FAIL,
-    ERR_PRODUCT_NOT_FOUND, ERR_INVALID_OPERATION,
+    MSG_HEALTH_OK, ERR_PRODUCT_NOT_FOUND, ERR_INVALID_OPERATION,
     ERR_INTERNAL, ERR_PARAMETERS_UNAVAILABLE
 )
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
 
 def _error_example(message: str) -> dict:
     return {'application/json': {'example': {'success': False, 'message': message, 'detail': 'string'}}}
@@ -22,15 +26,15 @@ _ERROR_RESPONSES = {
     503: {'model': ApiResponse, 'description': ERR_PARAMETERS_UNAVAILABLE, 'content': _error_example(ERR_PARAMETERS_UNAVAILABLE)},
 }
 
-logger = logging.getLogger(__name__)
-router = APIRouter()
-
 
 def get_service(request: Request) -> RateCalculatorPort:
-    return request.app.state.service
+    service = getattr(request.app.state, 'service', None)
+    if service is None:
+        raise ParametersNotFoundError('Service not initialized')
+    return service
 
 
-def _to_operation(body: LoanOperationRequest) -> LoanOperation:
+def get_operation(body: LoanOperationRequest) -> LoanOperation:
     try:
         return LoanOperation(
             product=ProductType(body.product), currency=Currency(body.currency),
@@ -40,17 +44,30 @@ def _to_operation(body: LoanOperationRequest) -> LoanOperation:
         raise InvalidOperationError(str(e))
 
 
-@router.get('/health', response_model=ApiResponse)
-def health(request: Request):
-    if not hasattr(request.app.state, 'service') or request.app.state.service is None:
-        return JSONResponse(status_code=503, content={'success': False, 'message': MSG_HEALTH_FAIL})
+def get_operations(body: list[LoanOperationRequest]) -> list[LoanOperation]:
+    try:
+        return [
+            LoanOperation(
+                product=ProductType(b.product), currency=Currency(b.currency),
+                amount=b.amount, term_months=b.term_months, target_roa=b.target_roa
+            ) for b in body
+        ]
+    except ValueError as e:
+        raise InvalidOperationError(str(e))
+
+
+@router.get('/health', response_model=ApiResponse[dict])
+def health(service: RateCalculatorPort = Depends(get_service)):
     return ApiResponse(success=True, data={'status': 'ok', 'message': MSG_HEALTH_OK})
 
 
-@router.post('/calcular', response_model=ApiResponse, responses=_ERROR_RESPONSES)
-def calculate(body: LoanOperationRequest, service: RateCalculatorPort = Depends(get_service)):
-    logger.info('POST /calcular: product=%s, currency=%s', body.product, body.currency)
-    result = service.calculate(_to_operation(body))
+@router.post('/calcular', response_model=ApiResponse[OptimizationData], responses=_ERROR_RESPONSES)
+def calculate(
+    operation: LoanOperation = Depends(get_operation),
+    service: RateCalculatorPort = Depends(get_service),
+):
+    logger.info('POST /calcular: product=%s, currency=%s', operation.product, operation.currency)
+    result = service.calculate(operation)
     logger.info('POST /calcular result: tea=%.6f', result.tea)
     curves = [CurveRow(**row) for row in result.curves.to_dict(orient='records')]
     return ApiResponse(success=True, data=OptimizationData(
@@ -59,9 +76,12 @@ def calculate(body: LoanOperationRequest, service: RateCalculatorPort = Depends(
     ))
 
 
-@router.post('/calcular/lote', response_model=ApiResponse, responses=_ERROR_RESPONSES)
-def calculate_batch(body: list[LoanOperationRequest], service: RateCalculatorPort = Depends(get_service)):
-    logger.info('POST /calcular/lote: count=%d', len(body))
-    results = service.calculate_batch([_to_operation(r) for r in body])
+@router.post('/calcular/lote', response_model=ApiResponse[list[BatchOptimizationData]], responses=_ERROR_RESPONSES)
+def calculate_batch(
+    operations: list[LoanOperation] = Depends(get_operations),
+    service: RateCalculatorPort = Depends(get_service),
+):
+    logger.info('POST /calcular/lote: count=%d', len(operations))
+    results = service.calculate_batch(operations)
     data = [BatchOptimizationData(tea=r.tea, unit_clv=r.unit_clv, optimization_error=r.optimization_error) for r in results]
     return ApiResponse(success=True, data=data)

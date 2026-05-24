@@ -1,4 +1,4 @@
-# BCP Coding Challenge — CLV Rate Optimizer API
+# CLV Rate Optimizer API
 
 API REST para el cálculo óptimo de tasa de interés (TEA) basado en el modelo de Customer Lifetime Value (CLV), construida con FastAPI y Arquitectura Hexagonal.
 
@@ -6,46 +6,71 @@ API REST para el cálculo óptimo de tasa de interés (TEA) basado en el modelo 
 
 - Python 3.12+
 
-## Instalación
+## Instalación y ejecución
 
-### Ubuntu / Debian
+### Linux / macOS
+
 ```bash
-python3 -m venv bcp-challenge-venv
-source bcp-challenge-venv/bin/activate
+# 1. Clonar el repositorio
+git clone https://github.com/Fabio244000/bcp-coding-challenge.git
+cd bcp-coding-challenge
+
+# 2. Crear entorno virtual e instalar dependencias
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-```
 
-### macOS (Terminal o iTerm2)
-```bash
-python3 -m venv bcp-challenge-venv
-source bcp-challenge-venv/bin/activate
-pip install -r requirements.txt
-```
+# 3. Crear archivo de configuración
+cp .env.example .env
 
-### Windows (Command Prompt)
-```bash
-python -m venv bcp-challenge-venv
-bcp-challenge-venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-## Ejecución
-
-Con el entorno virtual activado, ejecutar desde la raíz del proyecto:
-
-```bash
+# 4. Levantar la API
 uvicorn main:app --reload
 ```
 
-La API quedará disponible en: http://localhost:8000
+### Windows (PowerShell)
 
-Documentación Swagger disponible en: http://localhost:8000/docs
+```powershell
+# 1. Clonar el repositorio
+git clone https://github.com/Fabio244000/bcp-coding-challenge.git
+cd bcp-coding-challenge
 
-## Ejecución de tests
+# 2. Crear entorno virtual e instalar dependencias
+python -m venv venv
+venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# 3. Crear archivo de configuración
+Copy-Item .env.example .env
+
+# 4. Levantar la API
+uvicorn main:app --reload
+```
+
+Los valores por defecto de `.env.example` funcionan sin modificación. Ver la sección [Configuración](#configuración) si se necesita ajustar algún parámetro.
+
+La API queda disponible en: http://localhost:8000
+
+Documentación Swagger: http://localhost:8000/docs
+
+## Tests
 
 ```bash
 pytest tests/
 ```
+
+## Configuración
+
+Los parámetros del modelo se controlan vía el archivo `.env` en la raíz del proyecto (nunca se sube al repositorio). El archivo `.env.example` incluye todos los valores por defecto:
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `TEA_MIN` | `0.01` | Límite inferior de búsqueda de TEA |
+| `TEA_MAX` | `2.0` | Límite superior de búsqueda de TEA |
+| `TOLERANCE` | `0.000001` | Tolerancia de convergencia del optimizador |
+| `MAX_ITERATIONS` | `100` | Máximo de iteraciones de Brent |
+| `DAYS_PER_MONTH` | `30` | Días por mes para la curva de fondeo |
+| `DATA_PATH` | `data` | Directorio de archivos CSV |
+| `LOG_LEVEL` | `INFO` | Nivel de logging |
 
 ---
 
@@ -59,10 +84,7 @@ Verifica que el servicio y sus dependencias estén disponibles.
 ```json
 {
     "success": true,
-    "data": {
-        "status": "ok",
-        "message": "Service is healthy"
-    }
+    "data": { "status": "ok", "message": "Service is healthy" }
 }
 ```
 
@@ -78,7 +100,7 @@ Verifica que el servicio y sus dependencias estén disponibles.
 
 ### POST /calcular
 
-Calcula la TEA óptima para una operación crediticia individual.
+Calcula la TEA óptima para una operación crediticia individual. Devuelve la TEA, el CLV unitario y las curvas de amortización mensuales.
 
 **Request**
 ```json
@@ -92,9 +114,9 @@ Calcula la TEA óptima para una operación crediticia individual.
 ```
 
 | Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `product` | string | Producto: `Credito`, `Leasing`, `Tarjeta` |
-| `currency` | string | Moneda: `PEN`, `USD` |
+|---|---|---|
+| `product` | string | `Credito`, `Leasing`, `Tarjeta` |
+| `currency` | string | `PEN`, `USD` |
 | `amount` | float | Monto del crédito (mayor a 0) |
 | `term_months` | int | Plazo en meses (mayor a 0) |
 | `target_roa` | float | ROA objetivo del banco (mayor a 0) |
@@ -137,56 +159,26 @@ Calcula la TEA óptima para una operación crediticia individual.
 }
 ```
 
-**Response 404** — producto o moneda no encontrado
-```json
-{
-    "success": false,
-    "message": "Product or currency combination not found",
-    "detail": "Credito/EUR"
-}
-```
+**Errores**
 
-**Response 422** — parámetros inválidos
-```json
-{
-    "success": false,
-    "message": "Invalid operation parameters",
-    "detail": "Amount must be positive"
-}
-```
-
-**Response 500** — error de optimización
-```json
-{
-    "success": false,
-    "message": "Could not find optimal TEA within configured range",
-    "detail": "..."
-}
-```
+| Código | Causa |
+|---|---|
+| 404 | Producto o moneda no encontrada en los parámetros de mercado |
+| 422 | Parámetros de entrada inválidos (monto negativo, plazo cero, etc.) |
+| 500 | El optimizador no convergió dentro del rango configurado |
+| 503 | Parámetros de mercado no disponibles |
 
 ---
 
 ### POST /calcular/lote
 
-Calcula la TEA óptima para múltiples operaciones en una sola llamada.
+Calcula la TEA óptima para múltiples operaciones en una sola llamada. Devuelve TEA, CLV y error de optimización por operación (sin curvas).
 
 **Request**
 ```json
 [
-    {
-        "product": "Credito",
-        "currency": "PEN",
-        "amount": 10000.0,
-        "term_months": 12,
-        "target_roa": 0.05
-    },
-    {
-        "product": "Leasing",
-        "currency": "USD",
-        "amount": 50000.0,
-        "term_months": 24,
-        "target_roa": 0.06
-    }
+    { "product": "Credito", "currency": "PEN", "amount": 10000.0, "term_months": 12, "target_roa": 0.05 },
+    { "product": "Leasing", "currency": "USD", "amount": 50000.0, "term_months": 24, "target_roa": 0.06 }
 ]
 ```
 
@@ -195,16 +187,8 @@ Calcula la TEA óptima para múltiples operaciones en una sola llamada.
 {
     "success": true,
     "data": [
-        {
-            "tea": 0.187432,
-            "unit_clv": 0.050001,
-            "optimization_error": 0.000001
-        },
-        {
-            "tea": 0.213845,
-            "unit_clv": 0.060002,
-            "optimization_error": 0.000002
-        }
+        { "tea": 0.187432, "unit_clv": 0.050001, "optimization_error": 0.000001 },
+        { "tea": 0.213845, "unit_clv": 0.060002, "optimization_error": 0.000002 }
     ]
 }
 ```
@@ -213,18 +197,39 @@ Calcula la TEA óptima para múltiples operaciones en una sola llamada.
 
 ## Arquitectura
 
-El proyecto sigue **Arquitectura Hexagonal (Puertos y Adaptadores)**:
+El proyecto sigue **Arquitectura Hexagonal (Puertos y Adaptadores)**. El dominio no depende de ningún adaptador — no sabe si los parámetros vienen de CSV, base de datos o API externa.
 
 ```
 app/
+├── config.py                   # Configuración vía pydantic-settings (.env)
 ├── domain/
-│   ├── entities/        # LoanOperation, OptimizationResult
-│   ├── ports/           # RateCalculatorPort, MarketParametersPort
-│   ├── services/        # RateOptimizerService (lógica de negocio)
-│   └── exceptions.py    # Excepciones de dominio
+│   ├── entities/               # LoanOperation, OptimizationResult, enums
+│   ├── ports/                  # RateCalculatorPort, MarketParametersPort (interfaces)
+│   ├── services/
+│   │   ├── operation_validator.py    # Validación de parámetros de entrada
+│   │   ├── amortization_calculator.py # Cuota y saldos (amortización francesa)
+│   │   ├── clv_calculator.py         # CLV, optimización con Brent, curvas
+│   │   └── rate_optimizer_service.py # Orquestador principal
+│   └── exceptions.py           # Excepciones de dominio
 └── adapters/
-    ├── csv/             # Carga de parámetros desde archivos CSV
-    └── api/             # Rutas FastAPI, schemas, exception handler
+    ├── csv/                    # Carga de parámetros desde archivos CSV
+    └── api/                    # Rutas FastAPI, schemas Pydantic, exception handlers
+
+data/                           # Archivos CSV de parámetros de mercado
+legacy/                         # Código original entregado (solo referencia)
+tests/                          # Tests unitarios e integración
 ```
 
-El dominio no depende de ningún adaptador. Los parámetros de mercado (costos, tasas de fondeo, probabilidades de default) se inyectan vía el puerto `MarketParametersPort`.
+### Flujo de una petición
+
+```
+POST /calcular
+    → get_operation()        convierte request a LoanOperation (DI)
+    → get_service()          obtiene el servicio desde app.state (DI)
+    → RateOptimizerService   orquesta el cálculo
+        → OperationValidator      valida parámetros
+        → CSVParametersAdapter    obtiene costos, tasas PD (vía puerto)
+        → CLVCalculator.brentq    encuentra TEA óptima (~15 iteraciones)
+        → CLVCalculator.curves    construye tabla mensual vectorizada
+    ← ApiResponse[OptimizationData]  con TEA, CLV y curvas
+```

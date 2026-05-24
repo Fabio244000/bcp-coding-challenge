@@ -1,9 +1,13 @@
 import pytest
 import numpy as np
 from unittest.mock import MagicMock
+from app.domain.services.operation_validator import OperationValidator
+from app.domain.services.amortization_calculator import AmortizationCalculator
+from app.domain.services.clv_calculator import CLVCalculator
 from app.domain.services.rate_optimizer_service import RateOptimizerService
 from app.domain.entities.loan_operation import LoanOperation, ProductType, Currency
 from app.domain.exceptions import InvalidOperationError
+from app.config import Settings
 
 class TestOptimizerService:
     """Prueba el servicio de optimización de TEA con parámetros de mercado simulados."""
@@ -13,7 +17,10 @@ class TestOptimizerService:
         self.mock_parameters.get_costs.return_value = (0.02, 0.005)
         self.mock_parameters.get_default_probability.return_value = np.full(12, 0.005)
         self.mock_parameters.get_funding_rate.return_value = 0.05
-        self.service = RateOptimizerService(self.mock_parameters)
+        settings = Settings()
+        amortization = AmortizationCalculator()
+        clv_calculator = CLVCalculator(amortization, settings)
+        self.service = RateOptimizerService(self.mock_parameters, OperationValidator(), clv_calculator, settings)
         self.operation = LoanOperation(
             product=ProductType.CREDIT,
             currency=Currency.PEN,
