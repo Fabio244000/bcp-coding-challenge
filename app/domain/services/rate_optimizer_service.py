@@ -17,6 +17,7 @@ DAYS_PER_MONTH = 30
 
 
 class RateOptimizerService(RateCalculatorPort):
+    """Finds the optimal TEA for a loan operation using the CLV model and Brent's root-finding method."""
 
     def __init__(self, parameters: MarketParametersPort):
         self._parameters = parameters
@@ -45,8 +46,10 @@ class RateOptimizerService(RateCalculatorPort):
         if operation.target_roa <= 0:
             raise InvalidOperationError('Target ROA must be positive')
 
-    def _find_optimal_tea(self, operation, orig_cost, maint_cost, months, funding_rates, survival) -> float:
-        def objective(tea):
+    def _find_optimal_tea(self, operation: LoanOperation, orig_cost: float, maint_cost: float,
+                          months: np.ndarray, funding_rates: np.ndarray, survival: np.ndarray) -> float:
+        """Returns the TEA where CLV equals target ROA, solved via Brent's method."""
+        def objective(tea: float) -> float:
             return self._compute_clv(tea, operation, orig_cost, maint_cost, months, funding_rates, survival) - operation.target_roa
         try:
             return brentq(objective, TEA_MIN, TEA_MAX, xtol=TOLERANCE, maxiter=MAX_ITERATIONS)
@@ -54,7 +57,9 @@ class RateOptimizerService(RateCalculatorPort):
             logger.warning('TEA did not converge: amount=%.2f', operation.amount)
             raise OptimizationError('Could not find optimal TEA within range')
 
-    def _compute_clv(self, tea, operation, orig_cost, maint_cost, months, funding_rates, survival) -> float:
+    def _compute_clv(self, tea: float, operation: LoanOperation, orig_cost: float, maint_cost: float,
+                     months: np.ndarray, funding_rates: np.ndarray, survival: np.ndarray) -> float:
+        """Computes unit CLV as NPV of survival-weighted net flows discounted by funding rates, normalized by amount."""
         tem = (1 + tea) ** (1 / 12) - 1
         payment = self._calculate_payment(operation.amount, tem, operation.term_months)
         balances = self._calculate_balances(operation.amount, tem, operation.term_months, months)
@@ -62,7 +67,10 @@ class RateOptimizerService(RateCalculatorPort):
         discount_factors = 1 / (1 + funding_rates / 12) ** months
         return (-operation.amount - orig_cost * operation.amount + np.sum(net_flows * discount_factors)) / operation.amount
 
-    def _compute_clv_with_curves(self, tea, operation, orig_cost, maint_cost, pd_array, months, funding_rates, survival) -> tuple:
+    def _compute_clv_with_curves(self, tea: float, operation: LoanOperation, orig_cost: float, maint_cost: float,
+                                  pd_array: np.ndarray, months: np.ndarray,
+                                  funding_rates: np.ndarray, survival: np.ndarray) -> tuple[float, pd.DataFrame]:
+        """Computes unit CLV and the per-month amortization curve in a single vectorized pass."""
         tem = (1 + tea) ** (1 / 12) - 1
         payment = self._calculate_payment(operation.amount, tem, operation.term_months)
         balances = self._calculate_balances(operation.amount, tem, operation.term_months, months)
@@ -91,7 +99,11 @@ class RateOptimizerService(RateCalculatorPort):
             ) for m in months
         ])
 
-    def _build_curves(self, operation, months, balances, payment, pd_array, survival, funding_costs, maintenance_costs, net_flows, discount_factors, pv_flows, orig_cost) -> pd.DataFrame:
+    def _build_curves(self, operation: LoanOperation, months: np.ndarray, balances: np.ndarray,
+                      payment: float, pd_array: np.ndarray, survival: np.ndarray,
+                      funding_costs: np.ndarray, maintenance_costs: np.ndarray,
+                      net_flows: np.ndarray, discount_factors: np.ndarray,
+                      pv_flows: np.ndarray, orig_cost: float) -> pd.DataFrame:
         return pd.concat([
             self._build_row_zero(operation, orig_cost),
             self._build_monthly_rows(months, balances, payment, pd_array, survival, funding_costs, maintenance_costs, net_flows, discount_factors, pv_flows)
@@ -106,7 +118,10 @@ class RateOptimizerService(RateCalculatorPort):
             'discount_factor': 1.0, 'present_value': initial_flow
         }])
 
-    def _build_monthly_rows(self, months, balances, payment, pd_array, survival, funding_costs, maintenance_costs, net_flows, discount_factors, pv_flows) -> pd.DataFrame:
+    def _build_monthly_rows(self, months: np.ndarray, balances: np.ndarray, payment: float,
+                            pd_array: np.ndarray, survival: np.ndarray, funding_costs: np.ndarray,
+                            maintenance_costs: np.ndarray, net_flows: np.ndarray,
+                            discount_factors: np.ndarray, pv_flows: np.ndarray) -> pd.DataFrame:
         return pd.DataFrame({
             'month': months.astype(int), 'balance': balances, 'payment': payment,
             'marginal_pd': pd_array, 'survival': survival, 'funding_cost': funding_costs,

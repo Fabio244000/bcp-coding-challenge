@@ -10,7 +10,27 @@ class LoanOperationRequest(BaseModel):
     target_roa: float = Field(gt=0)
 
 
+class CurveRow(BaseModel):
+    month: int
+    balance: float
+    payment: float
+    marginal_pd: float
+    survival: float
+    funding_cost: float
+    maintenance_cost: float
+    net_flow: float
+    discount_factor: float
+    present_value: float
+
+
 class OptimizationData(BaseModel):
+    tea: float
+    unit_clv: float
+    optimization_error: float
+    curves: list[CurveRow]
+
+
+class BatchOptimizationData(BaseModel):
     tea: float
     unit_clv: float
     optimization_error: float

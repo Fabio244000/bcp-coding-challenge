@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class CSVParametersAdapter(MarketParametersPort):
+    """Loads market parameters from CSV files and serves them via the MarketParametersPort contract."""
+
     def __init__(self, data_path: str):
         self._costs = self._load_csv(data_path, COSTS_FILE, COSTS_COLUMNS)
         self._rates = self._load_csv(data_path, RATES_FILE, RATES_COLUMNS)

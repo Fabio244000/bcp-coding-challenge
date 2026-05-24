@@ -12,8 +12,17 @@ from app.domain.exceptions import (
 )
 
 
+_CURVE_COLUMNS = [
+    'month', 'balance', 'payment', 'marginal_pd', 'survival',
+    'funding_cost', 'maintenance_cost', 'net_flow', 'discount_factor', 'present_value',
+]
+_MOCK_CURVES = pd.DataFrame(
+    [[0, 10000.0, 0.0, 0.0, 1.0, 0.0, 0.0, -10000.0, 1.0, -10000.0]],
+    columns=_CURVE_COLUMNS,
+)
+
 MOCK_RESULT = OptimizationResult(
-    tea=0.25, unit_clv=0.05, optimization_error=0.0, curves=pd.DataFrame(),
+    tea=0.25, unit_clv=0.05, optimization_error=0.0, curves=_MOCK_CURVES,
 )
 
 VALID_PAYLOAD = {
@@ -45,6 +54,8 @@ def error_client(mock_service):
 
 
 class TestHealthEndpoint:
+    """Prueba el endpoint GET /health y su respuesta según la disponibilidad del servicio."""
+
     def test_health_returns_200(self, client):
         response = client.get('/health')
         assert response.status_code == 200
@@ -58,6 +69,8 @@ class TestHealthEndpoint:
 
 
 class TestCalculateEndpoint:
+    """Prueba el endpoint POST /calcular con casos de éxito y manejo de errores."""
+
     def test_calculate_returns_200(self, client):
         response = client.post('/calcular', json=VALID_PAYLOAD)
         assert response.status_code == 200
@@ -66,6 +79,15 @@ class TestCalculateEndpoint:
     def test_calculate_response_contains_tea(self, client):
         response = client.post('/calcular', json=VALID_PAYLOAD)
         assert 'tea' in response.json()['data']
+
+    def test_calculate_response_contains_curves(self, client):
+        response = client.post('/calcular', json=VALID_PAYLOAD)
+        data = response.json()['data']
+        assert 'curves' in data
+        assert isinstance(data['curves'], list)
+        assert len(data['curves']) > 0
+        assert 'month' in data['curves'][0]
+        assert 'present_value' in data['curves'][0]
 
     def test_calculate_returns_404_when_product_not_found(self, client, mock_service):
         mock_service.calculate.side_effect = ProductNotFoundError('Credito/PEN')
@@ -111,6 +133,8 @@ class TestCalculateEndpoint:
 
 
 class TestCalculateBatchEndpoint:
+    """Prueba el endpoint POST /calcular/lote con casos de éxito y manejo de errores."""
+
     def test_calculate_batch_returns_200(self, client):
         response = client.post('/calcular/lote', json=[VALID_PAYLOAD, VALID_PAYLOAD])
         assert response.status_code == 200

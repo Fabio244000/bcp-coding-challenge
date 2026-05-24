@@ -3,6 +3,7 @@ from app.domain.entities.loan_operation import LoanOperation, OptimizationResult
 
 
 class TestLoanOperation:
+    """Prueba la creación y almacenamiento correcto de los campos de LoanOperation."""
     def test_create_valid_operations(self):
         operation = LoanOperation(
             product=ProductType.CREDIT,
@@ -32,6 +33,7 @@ class TestLoanOperation:
 
 
 class TestOptimizationResult:
+    """Prueba la creación de OptimizationResult y que el DataFrame de curvas se almacena correctamente."""
 
     def setup_method(self):
         self.curves = pd.DataFrame({'month': [0, 1], 'balance': [10000.0, 9000.0]})

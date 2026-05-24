@@ -23,7 +23,7 @@ class LoanOperation:
     target_roa: float
 
 
-@dataclass(frozen=True)
+@dataclass
 class OptimizationResult:
     tea: float
     unit_clv: float

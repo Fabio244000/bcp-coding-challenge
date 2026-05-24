@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from app.domain.ports.rate_calculator_port import RateCalculatorPort
 from app.domain.entities.loan_operation import LoanOperation, ProductType, Currency
 from app.domain.exceptions import InvalidOperationError
-from app.adapters.api.schemas import LoanOperationRequest, OptimizationData, ApiResponse
+from app.adapters.api.schemas import LoanOperationRequest, OptimizationData, BatchOptimizationData, CurveRow, ApiResponse
 from app.adapters.api.constants import (
     MSG_HEALTH_OK, MSG_HEALTH_FAIL,
     ERR_PRODUCT_NOT_FOUND, ERR_INVALID_OPERATION,
@@ -52,8 +52,10 @@ def calculate(body: LoanOperationRequest, service: RateCalculatorPort = Depends(
     logger.info('POST /calcular: product=%s, currency=%s', body.product, body.currency)
     result = service.calculate(_to_operation(body))
     logger.info('POST /calcular result: tea=%.6f', result.tea)
+    curves = [CurveRow(**row) for row in result.curves.to_dict(orient='records')]
     return ApiResponse(success=True, data=OptimizationData(
-        tea=result.tea, unit_clv=result.unit_clv, optimization_error=result.optimization_error
+        tea=result.tea, unit_clv=result.unit_clv,
+        optimization_error=result.optimization_error, curves=curves
     ))
 
 
@@ -61,5 +63,5 @@ def calculate(body: LoanOperationRequest, service: RateCalculatorPort = Depends(
 def calculate_batch(body: list[LoanOperationRequest], service: RateCalculatorPort = Depends(get_service)):
     logger.info('POST /calcular/lote: count=%d', len(body))
     results = service.calculate_batch([_to_operation(r) for r in body])
-    data = [OptimizationData(tea=r.tea, unit_clv=r.unit_clv, optimization_error=r.optimization_error) for r in results]
+    data = [BatchOptimizationData(tea=r.tea, unit_clv=r.unit_clv, optimization_error=r.optimization_error) for r in results]
     return ApiResponse(success=True, data=data)

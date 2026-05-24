@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 class MarketParametersPort(ABC):
+    """Port defining the contract for retrieving market parameters."""
 
     @abstractmethod
     def get_costs(self, product: str, currency: str) -> tuple[float, float]:

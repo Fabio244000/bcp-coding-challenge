@@ -45,6 +45,8 @@ def batch_results(service):
 
 
 class TestCSVLoading:
+    """Prueba que el adaptador CSV carga correctamente los parámetros de mercado."""
+
     def test_parameters_adapter_loads_successfully(self, parameters):
         origination, maintenance = parameters.get_costs(ProductType.CREDIT.value, Currency.PEN.value)
         assert origination > 0
@@ -60,6 +62,8 @@ class TestCSVLoading:
 
 
 class TestBatchResults:
+    """Prueba los resultados de optimización en lote para las 10 operaciones definidas."""
+
     def test_batch_returns_ten_results(self, batch_results):
         assert len(batch_results) == 10
 
@@ -115,6 +119,8 @@ class TestBatchResults:
 
 
 class TestPerformance:
+    """Prueba que el procesamiento en lote se ejecuta dentro del límite de tiempo permitido."""
+
     def test_batch_executes_within_time_limit(self, service):
         start = time.time()
         service.calculate_batch(OPERATIONS)

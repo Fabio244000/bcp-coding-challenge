@@ -6,6 +6,7 @@ from app.domain.entities.loan_operation import ProductType, Currency
 
 
 class TestCSVParametersAdapter:
+    """Prueba el adaptador CSV: carga de archivos, consulta de costos, tasas de fondeo y probabilidades de default."""
 
     def setup_method(self):
         self.adapter = CSVParametersAdapter(data_path='.')

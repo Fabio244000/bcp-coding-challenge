@@ -6,6 +6,8 @@ from app.domain.entities.loan_operation import LoanOperation, ProductType, Curre
 from app.domain.exceptions import InvalidOperationError
 
 class TestOptimizerService:
+    """Prueba el servicio de optimización de TEA con parámetros de mercado simulados."""
+
     def setup_method(self):
         self.mock_parameters = MagicMock()
         self.mock_parameters.get_costs.return_value = (0.02, 0.005)
