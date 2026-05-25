@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     tea_min: float = 0.01
-    tea_max: float = 2.0
+    tea_max: float = 0.8
     tolerance: float = 1e-6
     max_iterations: int = 100
     days_per_month: int = 30

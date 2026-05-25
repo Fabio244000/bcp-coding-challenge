@@ -65,7 +65,7 @@ Los parámetros del modelo se controlan vía el archivo `.env` en la raíz del p
 | Variable | Default | Descripción |
 |---|---|---|
 | `TEA_MIN` | `0.01` | Límite inferior de búsqueda de TEA |
-| `TEA_MAX` | `2.0` | Límite superior de búsqueda de TEA |
+| `TEA_MAX` | `0.8` | Límite superior de búsqueda de TEA |
 | `TOLERANCE` | `0.000001` | Tolerancia de convergencia del optimizador |
 | `MAX_ITERATIONS` | `100` | Máximo de iteraciones de Brent |
 | `DAYS_PER_MONTH` | `30` | Días por mes para la curva de fondeo |
